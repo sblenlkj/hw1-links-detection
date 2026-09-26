@@ -1,0 +1,99 @@
+{
+  "metadata": {
+    "total_items": 1055,
+    "total_families": 8,
+    "covered_items": 1055,
+    "uncovered_items": 0,
+    "implemented_families": 0
+  },
+  "families": [
+    {
+      "name": "code",
+      "start_index": 0,
+      "end_index": 20,
+      "count": 21,
+      "implemented": false,
+      "aliases": [
+        "кодекс",
+        "Кодекс"
+      ]
+    },
+    {
+      "name": "presidential_order",
+      "start_index": 21,
+      "end_index": 54,
+      "count": 34,
+      "implemented": false,
+      "aliases": [
+        "Распоряжение Президента",
+        "Распоряжение",
+        "РП"
+      ]
+    },
+    {
+      "name": "federal_law",
+      "start_index": 55,
+      "end_index": 542,
+      "count": 488,
+      "implemented": false,
+      "aliases": [
+        "Федеральный закон",
+        "ФЗ"
+      ]
+    },
+    {
+      "name": "presidential_decree",
+      "start_index": 543,
+      "end_index": 957,
+      "count": 415,
+      "implemented": false,
+      "aliases": [
+        "Указ Президента",
+        "Указ"
+      ]
+    },
+    {
+      "name": "fundamentals_of_legislation",
+      "start_index": 958,
+      "end_index": 958,
+      "count": 1,
+      "implemented": false,
+      "aliases": [
+        "Основы законодательства",
+        "Основы"
+      ]
+    },
+    {
+      "name": "rf_law",
+      "start_index": 959,
+      "end_index": 990,
+      "count": 32,
+      "implemented": false,
+      "aliases": [
+        "Закон"
+      ]
+    },
+    {
+      "name": "federal_accounting_standard",
+      "start_index": 991,
+      "end_index": 1034,
+      "count": 44,
+      "implemented": false,
+      "aliases": [
+        "ФЕДЕРАЛЬНЫЙ СТАНДАРТ БУХГАЛТЕРСКОГО УЧЕТА",
+        "ФСБУ"
+      ]
+    },
+    {
+      "name": "accounting_regulation",
+      "start_index": 1035,
+      "end_index": 1054,
+      "count": 20,
+      "implemented": false,
+      "aliases": [
+        "ПБУ",
+        "ПОЛОЖЕНИЕ ПО БУХГАЛТЕРСКОМУ УЧЕТУ"
+      ]
+    }
+  ]
+}
