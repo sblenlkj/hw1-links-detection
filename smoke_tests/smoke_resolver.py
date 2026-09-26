@@ -45,13 +45,17 @@ def main() -> None:
         for match in segment.matches:
             print(f"  {type(match).__name__}: {match}")
 
-        if resolved is None:
+        if not resolved:
             print("  -> unresolved")
-        else:
+        elif len(resolved) == 1:
+            document = resolved[0]
             print(
-                f"  -> law_id={resolved.law_id} "
-                f"family={resolved.family}"
+                f"  -> law_id={document.law_id} "
+                f"family={document.family}"
             )
+        else:
+            candidates = ", ".join(str(document.law_id) for document in resolved)
+            print(f"  -> ambiguous: candidates={candidates}")
 
 
 if __name__ == "__main__":

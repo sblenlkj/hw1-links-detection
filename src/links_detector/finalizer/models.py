@@ -8,7 +8,7 @@ from links_detector.models import LawLink
 @dataclass(frozen=True)
 class SegmentResolution:
     segment: Segment
-    resolved: ResolvedDocument | None
+    resolved: tuple[ResolvedDocument, ...]
 
 
 @dataclass(frozen=True)
@@ -17,13 +17,21 @@ class FinalizerStats:
     invalid_segments: int
     resolver_failed: int
     resolved_segments: int
+    ambiguous_segments: int
     expanded_segments: int
+    produced_links: int
     unique_links: int
+
+
+@dataclass(frozen=True)
+class AmbiguousLinks:
+    candidates: tuple[LawLink, ...]
 
 
 @dataclass(frozen=True)
 class FinalizerResult:
     links: tuple[LawLink, ...]
+    ambiguous: tuple[AmbiguousLinks, ...]
     stats: FinalizerStats
     segments: tuple[Segment, ...]
     resolutions: tuple[SegmentResolution, ...]

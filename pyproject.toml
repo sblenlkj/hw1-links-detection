@@ -7,7 +7,10 @@ authors = [
     { name = "blenlkj", email = "sblenlkj@gmail.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+]
 
 [dependency-groups]
 dev = [
@@ -15,7 +18,7 @@ dev = [
 ]
 
 [project.scripts]
-links-detector = "links_detector:main"
+links-detector = "links_detector.main:main"
 
 [build-system]
 requires = ["uv_build>=0.12.11,<0.13.0"]

@@ -1,4 +1,4 @@
 from .finalizer import LinksFinalizer
-from .models import FinalizerResult, FinalizerStats
+from .models import AmbiguousLinks, FinalizerResult, FinalizerStats
 
-__all__ = ["FinalizerResult", "FinalizerStats", "LinksFinalizer"]
+__all__ = ["AmbiguousLinks", "FinalizerResult", "FinalizerStats", "LinksFinalizer"]

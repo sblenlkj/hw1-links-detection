@@ -30,6 +30,7 @@ def main() -> None:
     print(f"invalid_segments:  {stats.invalid_segments}")
     print(f"resolver_failed:   {stats.resolver_failed}")
     print(f"resolved_segments: {stats.resolved_segments}")
+    print(f"ambiguous_segments:{stats.ambiguous_segments:>4}")
     print(f"expanded_segments: {stats.expanded_segments}")
     print(f"unique_links:      {stats.unique_links}")
 

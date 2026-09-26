@@ -16,7 +16,9 @@ def main() -> None:
     print(f"invalid_segments:  {stats.invalid_segments}")
     print(f"resolver_failed:   {stats.resolver_failed}")
     print(f"resolved_segments: {stats.resolved_segments}")
+    print(f"ambiguous_segments:{stats.ambiguous_segments:>4}")
     print(f"expanded_segments: {stats.expanded_segments}")
+    print(f"produced_links:    {stats.produced_links}")
     print(f"unique_links:      {stats.unique_links}")
 
     print("\nSEGMENTS")
@@ -33,13 +35,19 @@ def main() -> None:
 
         if not segment.valid:
             print("     resolve: SKIPPED (invalid segment)")
-        elif resolution.resolved is None:
+        elif not resolution.resolved:
             print("     resolve: FAILED")
-        else:
+        elif len(resolution.resolved) == 1:
+            resolved = resolution.resolved[0]
             print(
-                f"     resolve: law_id={resolution.resolved.law_id} "
-                f"family={resolution.resolved.family}"
+                f"     resolve: law_id={resolved.law_id} "
+                f"family={resolved.family}"
             )
+        else:
+            candidates = ", ".join(
+                str(resolved.law_id) for resolved in resolution.resolved
+            )
+            print(f"     resolve: AMBIGUOUS candidates={candidates}")
         print()
 
     print("\nFOUND")

@@ -40,9 +40,9 @@ class DocumentResolver:
         self,
         segment: Segment,
         text: NormalizedText,
-    ) -> ResolvedDocument | None:
+    ) -> tuple[ResolvedDocument, ...]:
         if not segment.valid:
-            return None
+            return ()
 
         family_match = next(
             (match for match in segment.matches if isinstance(match, FamilyMatch)),
@@ -56,21 +56,24 @@ class DocumentResolver:
         if family_match is not None:
             family = family_match.family
             items = self._families.get(family, ())
-            law_id = self._resolve_family(
+            law_ids = self._resolve_family(
                 family=family,
                 items=items,
                 quote=quote_match.value if quote_match else None,
                 search_text=text.original[segment.start:segment.next_start],
             )
-            if law_id is not None:
-                return ResolvedDocument(law_id=law_id, family=family)
+            if law_ids:
+                return tuple(
+                    ResolvedDocument(law_id=law_id, family=family)
+                    for law_id in law_ids
+                )
 
         if quote_match is not None:
             resolved = self._resolve_title_globally(quote_match.value)
-            if resolved is not None:
+            if resolved:
                 return resolved
 
-        return None
+        return ()
 
     def _resolve_family(
         self,
@@ -78,11 +81,11 @@ class DocumentResolver:
         items: tuple[dict, ...],
         quote: str | None,
         search_text: str,
-    ) -> int | None:
+    ) -> tuple[int, ...]:
         if quote is not None:
             by_title = self._match_title(items, quote)
             if len(by_title) == 1:
-                return by_title[0]["law_id"]
+                return (by_title[0]["law_id"],)
             if by_title:
                 items = tuple(by_title)
 
@@ -90,12 +93,14 @@ class DocumentResolver:
             return self._resolve_structured(items, search_text)
 
         if family == "code":
-            return self._code_resolver.resolve(search_text)
+            law_id = self._code_resolver.resolve(search_text)
+            return (law_id,) if law_id is not None else ()
 
         if family == "accounting_regulation":
-            return self._resolve_pbu(items, search_text)
+            law_id = self._resolve_pbu(items, search_text)
+            return (law_id,) if law_id is not None else ()
 
-        return None
+        return ()
 
     @staticmethod
     def _match_title(items: tuple[dict, ...], title: str) -> list[dict]:
@@ -111,20 +116,22 @@ class DocumentResolver:
     def _resolve_structured(
         items: tuple[dict, ...],
         search_text: str,
-    ) -> int | None:
+    ) -> tuple[int, ...]:
         candidates = list(items)
 
         number_matches = [
             item
             for item in candidates
             if re.search(
-                rf"(?<![\w-])(?:№\s*)?{re.escape(item['number'])}(?!\w)",
+                rf"(?<![\w-]){re.escape(item['number'])}(?!\w)",
                 search_text,
                 re.IGNORECASE,
             )
         ]
-        if number_matches:
-            candidates = number_matches
+        if not number_matches:
+            return ()
+
+        candidates = number_matches
 
         date_matches = [
             item
@@ -134,10 +141,7 @@ class DocumentResolver:
         if date_matches:
             candidates = date_matches
 
-        if len(candidates) == 1:
-            return candidates[0]["law_id"]
-
-        return None
+        return tuple(item["law_id"] for item in candidates)
 
     @staticmethod
     def _resolve_pbu(items: tuple[dict, ...], search_text: str) -> int | None:
@@ -154,7 +158,7 @@ class DocumentResolver:
 
         return None
 
-    def _resolve_title_globally(self, title: str) -> ResolvedDocument | None:
+    def _resolve_title_globally(self, title: str) -> tuple[ResolvedDocument, ...]:
         matches: list[ResolvedDocument] = []
 
         for family, items in self._families.items():
@@ -166,10 +170,7 @@ class DocumentResolver:
                     )
                 )
 
-        if len(matches) == 1:
-            return matches[0]
-
-        return None
+        return tuple(matches)
 
     def _load_families(self) -> dict[str, tuple[dict, ...]]:
         result: dict[str, tuple[dict, ...]] = {}

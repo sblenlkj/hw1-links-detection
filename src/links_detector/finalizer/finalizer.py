@@ -14,7 +14,7 @@ from links_detector.document_resolver import DocumentResolver, ResolvedDocument
 from links_detector.models import LawLink
 from links_detector.normalization import TextNormalizer
 
-from .models import FinalizerResult, FinalizerStats, SegmentResolution
+from .models import AmbiguousLinks, FinalizerResult, FinalizerStats, SegmentResolution
 
 
 class LinksFinalizer:
@@ -32,38 +32,62 @@ class LinksFinalizer:
         invalid_segments = 0
         resolver_failed = 0
         resolved_segments = 0
+        ambiguous_segments = 0
         expanded_segments = 0
         expanded: list[LawLink] = []
+        ambiguous: list[AmbiguousLinks] = []
         resolutions: list[SegmentResolution] = []
 
         for segment in segments:
             if not segment.valid:
                 invalid_segments += 1
-                resolutions.append(SegmentResolution(segment=segment, resolved=None))
+                resolutions.append(SegmentResolution(segment=segment, resolved=()))
                 continue
 
             resolved = self._resolver.resolve(segment, normalized)
             resolutions.append(SegmentResolution(segment=segment, resolved=resolved))
-            if resolved is None:
+            if not resolved:
                 resolver_failed += 1
                 continue
 
             resolved_segments += 1
-            segment_links = self._expand(segment, resolved)
+            if len(resolved) > 1:
+                ambiguous_segments += 1
+
+            candidate_ids = ", ".join(str(item.law_id) for item in resolved)
+            comment = (
+                f"ambiguous law_id: candidates {candidate_ids}"
+                if len(resolved) > 1
+                else None
+            )
+
+            segment_links: list[LawLink] = []
+            for document in resolved:
+                segment_links.extend(self._expand(segment, document, comment=comment))
+
             if len(segment_links) > 1:
                 expanded_segments += 1
-            expanded.extend(segment_links)
+
+            if len(resolved) > 1:
+                ambiguous.append(AmbiguousLinks(candidates=tuple(segment_links)))
+            else:
+                expanded.extend(segment_links)
 
         unique_links = tuple(dict.fromkeys(expanded))
 
         return FinalizerResult(
             links=unique_links,
+            ambiguous=tuple(ambiguous),
             stats=FinalizerStats(
                 total_segments=len(segments),
                 invalid_segments=invalid_segments,
                 resolver_failed=resolver_failed,
                 resolved_segments=resolved_segments,
+                ambiguous_segments=ambiguous_segments,
                 expanded_segments=expanded_segments,
+                produced_links=len(expanded) + sum(
+                    len(item.candidates) for item in ambiguous
+                ),
                 unique_links=len(unique_links),
             ),
             segments=tuple(segments),
@@ -74,6 +98,7 @@ class LinksFinalizer:
     def _expand(
         segment: Segment,
         resolved: ResolvedDocument,
+        comment: str | None = None,
     ) -> list[LawLink]:
         articles: list[str | None] = []
         points: list[str | None] = []
@@ -97,6 +122,7 @@ class LinksFinalizer:
                 article=article,
                 point_article=point,
                 subpoint_article=subpoint,
+                comment=comment,
             )
             for article, point, subpoint in product(
                 article_values,

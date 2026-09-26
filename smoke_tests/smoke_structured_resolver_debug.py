@@ -24,7 +24,7 @@ def matching_numbers(items: tuple[dict, ...], search_text: str) -> list[dict]:
         item
         for item in items
         if re.search(
-            rf"(?<![\w-])(?:№\s*)?{re.escape(item['number'])}(?!\w)",
+            rf"(?<![\w-]){re.escape(item['number'])}(?!\w)",
             search_text,
             re.IGNORECASE,
         )
