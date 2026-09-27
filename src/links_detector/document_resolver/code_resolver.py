@@ -23,7 +23,7 @@ _CODE_PATTERNS: tuple[tuple[int, re.Pattern[str]], ...] = (
     (14, re.compile(r"(?<!\w)лесн\w{0,5}\s+кодекс\w{0,5}(?!\w)", re.IGNORECASE)),
     (15, re.compile(r"(?<!\w)налогов\w{0,5}\s+кодекс\w{0,5}(?!\w)", re.IGNORECASE)),
     (16, re.compile(r"(?<!\w)земельн\w{0,5}\s+кодекс\w{0,5}(?!\w)", re.IGNORECASE)),
-    (17, re.compile(r"(?<!\w)кодекс\w{0,5}\s+об\s+административн\w{0,5}\s+правонарушени\w{0,5}(?!\w)", re.IGNORECASE)),
+    (17, re.compile(r"(?<!\w)кодекс\w{0,5}(?:\s+(?:Российск\w{0,5}\s+Федераци\w{0,5}|России|РФ))?\s+об\s+административн\w{0,5}\s+правонарушени\w{0,5}(?!\w)", re.IGNORECASE)),
     (18, re.compile(r"(?<!\w)кодекс\w{0,5}\s+административн\w{0,5}\s+судопроизводств\w{0,5}(?!\w)", re.IGNORECASE)),
     (19, re.compile(r"(?<!\w)кодекс\w{0,5}\s+внутренн\w{0,5}\s+водн\w{0,5}\s+транспорт\w{0,5}(?!\w)", re.IGNORECASE)),
     (20, re.compile(r"(?<!\w)кодекс\w{0,5}\s+торгов\w{0,5}\s+мореплавани\w{0,5}(?!\w)", re.IGNORECASE)),

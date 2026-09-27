@@ -29,7 +29,7 @@ class FamilyCandidateStrategy:
     _FAMILY_PATTERNS = (
         (
             "presidential_order",
-            r"(?:Распоряжени\w{0,5}\s+Президент\w{0,5}|РП)",
+            r"(?:Распоряжени\w{0,5}(?:\s+Президент\w{0,5})?|РП)",
         ),
         (
             "federal_law",

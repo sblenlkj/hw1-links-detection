@@ -1,6 +1,6 @@
 """Models for accounting-document families.
 
-Federal accounting standards are identified by their title.
+Federal accounting standards are identified by their title and, when present,\nby an FSBУ identifier.
 
 Accounting regulations (PBU) are identified by a PBU identifier and can
 also be resolved by their title.

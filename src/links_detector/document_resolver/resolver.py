@@ -96,6 +96,10 @@ class DocumentResolver:
             law_id = self._code_resolver.resolve(search_text)
             return (law_id,) if law_id is not None else ()
 
+        if family == "federal_accounting_standard":
+            law_id = self._resolve_fsbu(items, search_text)
+            return (law_id,) if law_id is not None else ()
+
         if family == "accounting_regulation":
             law_id = self._resolve_pbu(items, search_text)
             return (law_id,) if law_id is not None else ()
@@ -142,6 +146,25 @@ class DocumentResolver:
             candidates = date_matches
 
         return tuple(item["law_id"] for item in candidates)
+
+    @staticmethod
+    def _resolve_fsbu(items: tuple[dict, ...], search_text: str) -> int | None:
+        normalized_text = _normalize(search_text)
+        matches = [
+            item
+            for item in items
+            if item.get("fsbu")
+            and re.search(
+                rf"(?<![\w/])ФСБУ\s+{re.escape(item['fsbu'])}(?![\w/])",
+                normalized_text,
+                re.IGNORECASE,
+            )
+        ]
+
+        if len(matches) == 1:
+            return matches[0]["law_id"]
+
+        return None
 
     @staticmethod
     def _resolve_pbu(items: tuple[dict, ...], search_text: str) -> int | None:
