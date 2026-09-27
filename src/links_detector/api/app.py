@@ -59,6 +59,34 @@ def detect(
 
 
 @app.post(
+    "/detect-all",
+    response_model=LinksResponse,
+    summary="Detect all legal references",
+    description=(
+        "Extracts all detected legal references in one list. "
+        "Unambiguous references are returned together with every candidate "
+        "from ambiguous references."
+    ),
+)
+def detect_all(
+    data: TextRequest,
+    finalizer: LinksFinalizer = Depends(get_finalizer),
+) -> LinksResponse:
+    result = finalizer.extract(data.text)
+    links = [
+        *result.links,
+        *(
+            candidate
+            for item in result.ambiguous
+            for candidate in item.candidates
+        ),
+    ]
+    return LinksResponse(
+        links=[_law_link_response(link) for link in links]
+    )
+
+
+@app.post(
     "/detect-ambiguous",
     response_model=AmbiguousLinksResponse,
     summary="Detect ambiguous legal references",
