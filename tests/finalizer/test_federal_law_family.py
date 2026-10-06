@@ -5,6 +5,20 @@ from links_detector.utils.test_text_builder import TestTextBuilder
 
 DUPLICATE_TITLE = 'О приостановлении действия части второй статьи 43 Закона Российской Федерации "О пенсионном обеспечении лиц, проходивших военную службу, службу в органах внутренних дел, Государственной противопожарной службе, органах по контролю за оборотом наркотических средств и психотропных веществ, учреждениях и органах уголовно-исполнительной системы, войсках национальной гвардии Российской Федерации, органах принудительного исполнения Российской Федерации, и их семей"'
 
+NESTED_MICROFINANCE_TITLE = (
+    'О защите прав и законных интересов физических лиц при осуществлении деятельности '
+    'по возврату просроченной задолженности и о внесении изменений в Федеральный закон '
+    '"О микрофинансовой деятельности и микрофинансовых организациях"'
+)
+
+NESTED_EDUCATION_TITLE = (
+    'Об особенностях правового регулирования отношений в сфере образования в связи '
+    'с принятием в Российскую Федерацию Республики Крым и образованием в составе '
+    'Российской Федерации новых субъектов - Республики Крым и города федерального '
+    'значения Севастополя и о внесении изменений в Федеральный закон '
+    '"Об образовании в Российской Федерации"'
+)
+
 
 def test_federal_law_family_variants_from_source_aliases() -> None:
     text = TestTextBuilder.build(
@@ -72,6 +86,23 @@ def test_federal_law_duplicate_number_without_date_is_ambiguous() -> None:
     assert {
         link.law_id for link in result.ambiguous[1].candidates
     } == {55, 142, 386, 456, 488}
+
+
+def test_federal_law_titles_with_nested_federal_law_quotes() -> None:
+    text = TestTextBuilder.build(
+        [
+            f'ст. 38 «{NESTED_MICROFINANCE_TITLE}»',
+            f'ст. 39 «{NESTED_EDUCATION_TITLE}»',
+        ]
+    )
+
+    result = LinksFinalizer().extract(text)
+
+    assert result.ambiguous == ()
+    assert result.links == (
+        LawLink(law_id=157, article="38"),
+        LawLink(law_id=189, article="39"),
+    )
 
 
 def test_federal_law_unique_titles_resolve_without_number() -> None:

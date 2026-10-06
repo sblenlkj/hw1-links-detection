@@ -26,6 +26,7 @@ from .strategies.structure_strategy import (
 
 _STRUCTURE_TYPES = (ArticleMatch, PartMatch, PointMatch, SubpointMatch)
 _DOCUMENT_TYPES = (FamilyMatch, QuoteMatch)
+_MAX_MATCH_GAP = 120
 
 
 class CandidateSegmentor:
@@ -48,10 +49,15 @@ class CandidateSegmentor:
         current: list[SegmentMatch] = []
 
         for match in matches:
+            gap_too_large = (
+                current
+                and match.start - current[-1].end > _MAX_MATCH_GAP
+            )
             should_close = (
                 current
                 and (
-                    isinstance(match, DiscourseMatch)
+                    gap_too_large
+                    or isinstance(match, DiscourseMatch)
                     or (
                         isinstance(match, _STRUCTURE_TYPES)
                         and isinstance(current[-1], (FamilyMatch, QuoteMatch))

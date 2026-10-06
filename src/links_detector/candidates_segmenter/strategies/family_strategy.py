@@ -111,6 +111,13 @@ class FamilyCandidateStrategy:
 
         for family, pattern in self._patterns:
             for match in pattern.finditer(text.original):
+                if (
+                    family == "federal_law"
+                    and match.start() > 0
+                    and text.original[match.start() - 1] == "«"
+                ):
+                    continue
+
                 matches.append(
                     FamilyMatch(
                         start=match.start(),

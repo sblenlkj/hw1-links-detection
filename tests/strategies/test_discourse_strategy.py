@@ -16,6 +16,14 @@ from links_detector.normalization import TextNormalizer
         "в силу",
         "предусмотрено",
         "в порядке, установленном",
+        "кроме того",
+        "дополнительно",
+        "при этом",
+        "также",
+        "вместе с тем",
+        "наряду с этим",
+        "наконец",
+        "в частности",
     ],
 )
 def test_default_discourse_markers(marker: str) -> None:

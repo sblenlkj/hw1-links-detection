@@ -68,6 +68,10 @@ def test_family_negative_cases(raw: str) -> None:
     assert families(raw) == []
 
 
+def test_federal_law_inside_guillemets_is_not_a_family_marker() -> None:
+    assert families('«Федеральный закон "О прокуратуре Российской Федерации"»') == []
+
+
 def test_family_preserves_original_offsets() -> None:
     raw = "До ссылки: КоАП РФ после."
     text = TextNormalizer().normalize(raw)

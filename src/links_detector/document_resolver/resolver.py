@@ -109,12 +109,29 @@ class DocumentResolver:
     @staticmethod
     def _match_title(items: tuple[dict, ...], title: str) -> list[dict]:
         normalized_title = _normalize(title)
-        return [
-            item
-            for item in items
-            if item.get("title")
-            and _normalize(item["title"]) == normalized_title
-        ]
+        matches: list[dict] = []
+
+        for item in items:
+            item_title = item.get("title")
+            if not item_title:
+                continue
+
+            if _normalize(item_title) == normalized_title:
+                matches.append(item)
+                continue
+
+            nested_federal_law = re.fullmatch(
+                r'Федеральный\s+закон\s+["«](.+?)["»]',
+                item_title,
+                re.IGNORECASE,
+            )
+            if (
+                nested_federal_law
+                and _normalize(nested_federal_law.group(1)) == normalized_title
+            ):
+                matches.append(item)
+
+        return matches
 
     @staticmethod
     def _resolve_structured(

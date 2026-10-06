@@ -13,5 +13,4 @@ wheels/
 .agents
 .artifacts
 
-results.txt
-test_results.txt
+*results*.txt

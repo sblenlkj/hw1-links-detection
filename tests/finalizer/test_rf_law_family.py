@@ -47,6 +47,23 @@ def test_rf_law_number_date_and_title_variants() -> None:
     )
 
 
+def test_rf_law_titles_that_include_federal_law_prefix() -> None:
+    text = TestTextBuilder.build(
+        [
+            'ст. 40 Федерального закона «О беженцах»',
+            'ст. 41 Федерального закона «О прокуратуре Российской Федерации»',
+        ]
+    )
+
+    result = LinksFinalizer().extract(text)
+
+    assert result.ambiguous == ()
+    assert result.links == (
+        LawLink(law_id=970, article="40"),
+        LawLink(law_id=985, article="41"),
+    )
+
+
 def test_rf_law_unique_titles_resolve_without_number() -> None:
     text = TestTextBuilder.build(
         [

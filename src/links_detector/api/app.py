@@ -1,8 +1,9 @@
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import Depends, FastAPI
 
-from links_detector.finalizer import LinksFinalizer
+from links_detector.finalizer import FinalizerResult, LinksFinalizer
 from links_detector.models import LawLink
 
 from .dependencies import get_finalizer
@@ -13,6 +14,9 @@ from .models import (
     LinksResponse,
     TextRequest,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -39,41 +43,8 @@ def _law_link_response(link: LawLink) -> LawLinkResponse:
     )
 
 
-@app.post(
-    "/detect",
-    response_model=LinksResponse,
-    summary="Detect legal references",
-    description=(
-        "Extracts legal references that resolve to exactly one law_id. "
-        "Ambiguous references are excluded; use /detect-ambiguous to inspect them."
-    ),
-)
-def detect(
-    data: TextRequest,
-    finalizer: LinksFinalizer = Depends(get_finalizer),
-) -> LinksResponse:
-    result = finalizer.extract(data.text)
-    return LinksResponse(
-        links=[_law_link_response(link) for link in result.links]
-    )
-
-
-@app.post(
-    "/detect-all",
-    response_model=LinksResponse,
-    summary="Detect all legal references",
-    description=(
-        "Extracts all detected legal references in one list. "
-        "Unambiguous references are returned together with every candidate "
-        "from ambiguous references."
-    ),
-)
-def detect_all(
-    data: TextRequest,
-    finalizer: LinksFinalizer = Depends(get_finalizer),
-) -> LinksResponse:
-    result = finalizer.extract(data.text)
-    links = [
+def _all_detected_links(result: FinalizerResult) -> list[LawLink]:
+    return [
         *result.links,
         *(
             candidate
@@ -81,6 +52,29 @@ def detect_all(
             for candidate in item.candidates
         ),
     ]
+
+
+@app.post(
+    "/detect",
+    response_model=LinksResponse,
+    summary="Detect legal references",
+    description=(
+        "Extracts all detected legal references in one list. "
+        "Unambiguous references are returned together with every candidate "
+        "from ambiguous references."
+    ),
+)
+def detect(
+    data: TextRequest,
+    finalizer: LinksFinalizer = Depends(get_finalizer),
+) -> LinksResponse:
+    try:
+        result = finalizer.extract(data.text)
+    except Exception:
+        logger.exception("Unexpected error while detecting legal references")
+        return LinksResponse(links=[])
+
+    links = _all_detected_links(result)
     return LinksResponse(
         links=[_law_link_response(link) for link in links]
     )
