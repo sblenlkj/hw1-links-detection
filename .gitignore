@@ -7,8 +7,10 @@ wheels/
 *.egg-info
 .DS_Store
 
-# Virtual environments
+# Virtual environments and local secrets
 .venv
+.env
+.env.*
 
 .agents
 .artifacts
