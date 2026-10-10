@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 import logging
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 
 from links_detector.finalizer import FinalizerResult, LinksFinalizer
 from links_detector.models import LawLink
@@ -43,15 +43,15 @@ def _law_link_response(link: LawLink) -> LawLinkResponse:
     )
 
 
-def _all_detected_links(result: FinalizerResult) -> list[LawLink]:
-    return [
-        *result.links,
-        *(
-            candidate
-            for item in result.ambiguous
-            for candidate in item.candidates
-        ),
-    ]
+def _extract(finalizer: LinksFinalizer, text: str) -> FinalizerResult:
+    try:
+        return finalizer.extract(text)
+    except Exception as error:
+        logger.exception("Unexpected error while detecting legal references")
+        raise HTTPException(
+            status_code=500,
+            detail="Internal error while detecting legal references",
+        ) from error
 
 
 @app.post(
@@ -61,22 +61,16 @@ def _all_detected_links(result: FinalizerResult) -> list[LawLink]:
     description=(
         "Extracts all detected legal references in one list. "
         "Unambiguous references are returned together with every candidate "
-        "from ambiguous references."
+        "from ambiguous references, in the order they appear in the text."
     ),
 )
 def detect(
     data: TextRequest,
     finalizer: LinksFinalizer = Depends(get_finalizer),
 ) -> LinksResponse:
-    try:
-        result = finalizer.extract(data.text)
-    except Exception:
-        logger.exception("Unexpected error while detecting legal references")
-        return LinksResponse(links=[])
-
-    links = _all_detected_links(result)
+    result = _extract(finalizer, data.text)
     return LinksResponse(
-        links=[_law_link_response(link) for link in links]
+        links=[_law_link_response(link) for link in result.all_links]
     )
 
 
@@ -93,7 +87,7 @@ def detect_ambiguous(
     data: TextRequest,
     finalizer: LinksFinalizer = Depends(get_finalizer),
 ) -> AmbiguousLinksResponse:
-    result = finalizer.extract(data.text)
+    result = _extract(finalizer, data.text)
     return AmbiguousLinksResponse(
         ambiguous=[
             AmbiguousLinkResponse(

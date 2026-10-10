@@ -29,37 +29,37 @@ class FamilyCandidateStrategy:
     _FAMILY_PATTERNS = (
         (
             "presidential_order",
-            r"(?:Распоряжени\w{0,5}(?:\s+Президент\w{0,5})?|РП)",
+            r"(?:(?i:распоряжени\w{0,5}(?:\s+президент\w{0,5})?)|РП)",
         ),
         (
             "federal_law",
-            r"(?:Федеральн\w{0,5}\s+закон\w{0,5}|ФЗ)",
+            r"(?:(?i:федеральн\w{0,5}\s+закон\w{0,5})|ФЗ)",
         ),
         (
             "presidential_decree",
-            r"(?:Указ\w{0,5}(?:\s+Президент\w{0,5})?)",
+            r"(?i:указ(?:а|у|ом|е|ы|ов|ами|ах)?(?:\s+президент\w{0,5})?)",
         ),
         (
             "fundamentals_of_legislation",
-            r"(?:Основ\w{0,5}\s+законодательств\w{0,5})",
+            r"(?i:основ\w{0,5}\s+законодательств\w{0,5})",
         ),
         (
             "rf_law",
-            r"(?:Закон\w{0,5})",
+            r"(?:Закон|ЗАКОН)(?:а|у|ом|е|ы|ов|ам|ами|ах|А|У|ОМ|Е|Ы|ОВ|АМ|АМИ|АХ)?",
         ),
         (
             "federal_accounting_standard",
-            r"(?:ФЕДЕРАЛЬН\w{0,5}\s+СТАНДАРТ\w{0,5}\s+"
-            r"БУХГАЛТЕРСК\w{0,5}\s+УЧЕТ\w{0,5}|ФСБУ)",
+            r"(?:(?i:федеральн\w{0,5}\s+стандарт\w{0,5}\s+"
+            r"бухгалтерск\w{0,5}\s+уч[её]т\w{0,5})|ФСБУ)",
         ),
         (
             "accounting_regulation",
-            r"(?:ПБУ|ПОЛОЖЕНИ\w{0,5}\s+ПО\s+"
-            r"БУХГАЛТЕРСК\w{0,5}\s+УЧЕТ\w{0,5})",
+            r"(?:ПБУ|(?i:положени\w{0,5}\s+по\s+"
+            r"бухгалтерск\w{0,5}\s+уч[её]т\w{0,5}))",
         ),
         (
             "code",
-            r"(?:кодекс\w{0,5}|Кодекс\w{0,5})",
+            r"(?i:кодекс\w{0,5})",
         ),
     )
 
@@ -127,4 +127,10 @@ class FamilyCandidateStrategy:
                     )
                 )
 
-        yield from sorted(matches, key=lambda match: (match.start, match.end))
+        matches.sort(key=lambda match: (match.start, -match.end))
+        last_end = -1
+        for match in matches:
+            if match.end <= last_end:
+                continue
+            last_end = match.end
+            yield match

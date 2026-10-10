@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 
 from links_detector.candidates_segmenter.models import Segment
+from links_detector.candidates_segmenter.strategies.discourse_strategy import DiscourseMatch
 from links_detector.candidates_segmenter.strategies.family_strategy import FamilyMatch
 from links_detector.candidates_segmenter.strategies.quote_strategy import QuoteMatch
 from links_detector.normalization import NormalizedText
@@ -44,23 +45,36 @@ class DocumentResolver:
         if not segment.valid:
             return ()
 
-        family_match = next(
-            (match for match in segment.matches if isinstance(match, FamilyMatch)),
-            None,
-        )
-        quote_match = next(
-            (match for match in segment.matches if isinstance(match, QuoteMatch)),
-            None,
-        )
+        structures = [
+            match for match in segment.matches
+            if not isinstance(match, (FamilyMatch, QuoteMatch, DiscourseMatch))
+        ]
+        documents = [
+            match for match in segment.matches
+            if isinstance(match, (FamilyMatch, QuoteMatch))
+        ]
 
-        if family_match is not None:
+        for family_match in self._family_candidates(segment, structures):
+            following = [
+                match for match in documents if match.start > family_match.start
+            ]
+            window_end = (
+                following[0].start
+                if following and isinstance(following[0], FamilyMatch)
+                else segment.next_start
+            )
+            quote_match = next(
+                (match for match in following if isinstance(match, QuoteMatch)),
+                None,
+            )
             family = family_match.family
-            items = self._families.get(family, ())
             law_ids = self._resolve_family(
                 family=family,
-                items=items,
+                items=self._families.get(family, ()),
                 quote=quote_match.value if quote_match else None,
-                search_text=text.original[segment.start:segment.next_start],
+                search_text=text.original[family_match.start:window_end],
+                full_text=text.original,
+                anchor=family_match,
             )
             if law_ids:
                 return tuple(
@@ -68,6 +82,10 @@ class DocumentResolver:
                     for law_id in law_ids
                 )
 
+        quote_match = next(
+            (match for match in segment.matches if isinstance(match, QuoteMatch)),
+            None,
+        )
         if quote_match is not None:
             resolved = self._resolve_title_globally(quote_match.value)
             if resolved:
@@ -75,12 +93,30 @@ class DocumentResolver:
 
         return ()
 
+    @staticmethod
+    def _family_candidates(
+        segment: Segment,
+        structures: list,
+    ) -> list[FamilyMatch]:
+        families = [
+            match for match in segment.matches if isinstance(match, FamilyMatch)
+        ]
+        if not structures:
+            return families
+
+        last_structure_end = structures[-1].end
+        after = [match for match in families if match.start >= last_structure_end]
+        before = [match for match in families if match.start < last_structure_end]
+        return after + before[::-1]
+
     def _resolve_family(
         self,
         family: str,
         items: tuple[dict, ...],
         quote: str | None,
         search_text: str,
+        full_text: str,
+        anchor: FamilyMatch,
     ) -> tuple[int, ...]:
         if quote is not None:
             by_title = self._match_title(items, quote)
@@ -93,7 +129,11 @@ class DocumentResolver:
             return self._resolve_structured(items, search_text)
 
         if family == "code":
-            law_id = self._code_resolver.resolve(search_text)
+            law_id = self._code_resolver.resolve(
+                full_text,
+                anchor_start=anchor.start,
+                anchor_end=anchor.end,
+            )
             return (law_id,) if law_id is not None else ()
 
         if family == "federal_accounting_standard":
@@ -144,7 +184,7 @@ class DocumentResolver:
             item
             for item in candidates
             if re.search(
-                rf"(?<![\w-]){re.escape(item['number'])}(?!\w)",
+                rf"(?<![\w-])(?:№|N)\s*{re.escape(item['number'].lstrip('№'))}(?!\w)",
                 search_text,
                 re.IGNORECASE,
             )
