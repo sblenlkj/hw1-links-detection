@@ -96,3 +96,16 @@ def test_structure_preserves_original_offsets() -> None:
 )
 def test_structure_requires_value(strategy, raw: str) -> None:
     assert list(strategy.find(TextNormalizer().normalize(raw))) == []
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("подпункт б.", [("б",)]),
+        ("пп. «а»", [("а",)]),
+        ("подпункты а, б и в", [("а", "б", "в")]),
+        ("пп. 1 и п. 2", [("1",)]),
+    ],
+)
+def test_subpoint_letters(raw: str, expected: list[tuple[str, ...]]) -> None:
+    assert values(SubpointCandidateStrategy(), raw) == expected

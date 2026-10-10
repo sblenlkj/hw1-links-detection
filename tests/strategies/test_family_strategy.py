@@ -40,6 +40,9 @@ def families(raw: str) -> list[tuple[str, str]]:
         ("КоАП РФ", "code"),
         ("АПК", "code"),
         ("ГК РФ", "code"),
+        ("федерального закона №1-ФЗ", "federal_law"),
+        ("НАЛОГОВОГО КОДЕКСА", "code"),
+        ("указ №456", "presidential_decree"),
     ],
 )
 def test_family_variants(raw: str, family: str) -> None:
@@ -49,7 +52,7 @@ def test_family_variants(raw: str, family: str) -> None:
     assert matches[0][1] == family
 
 
-def test_federal_law_and_rf_law_are_case_sensitive_families() -> None:
+def test_federal_law_is_not_duplicated_as_rf_law() -> None:
     assert families("Федеральный закон №1-ФЗ") == [
         ("Федеральный закон", "federal_law")
     ]
@@ -60,8 +63,9 @@ def test_federal_law_and_rf_law_are_case_sensitive_families() -> None:
     "raw",
     [
         "обычный документ",
-        "федеральный закон №1-ФЗ",
         "закон №2300-1",
+        "как указано выше",
+        "законный интерес",
     ],
 )
 def test_family_negative_cases(raw: str) -> None:

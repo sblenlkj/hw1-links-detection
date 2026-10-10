@@ -31,6 +31,7 @@ class AmbiguousLinks:
 @dataclass(frozen=True)
 class FinalizerResult:
     links: tuple[LawLink, ...]
+    all_links: tuple[LawLink, ...]
     ambiguous: tuple[AmbiguousLinks, ...]
     stats: FinalizerStats
     segments: tuple[Segment, ...]

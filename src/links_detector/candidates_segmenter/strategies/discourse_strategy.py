@@ -12,6 +12,7 @@ class DiscourseMatch:
     start: int
     end: int
     original_text: str
+    continuation: bool = False
 
     def __str__(self) -> str:
         return f"{self.original_text} ({self.start}, {self.end})"
@@ -38,6 +39,18 @@ class DiscourseCandidateStrategy:
         "в частности",
     )
 
+    CONTINUATION_MARKERS = frozenset(
+        (
+            "кроме того",
+            "дополнительно",
+            "при этом",
+            "также",
+            "вместе с тем",
+            "наряду с этим",
+            "в частности",
+        )
+    )
+
     def __init__(self) -> None:
         escaped = sorted(
             (re.escape(marker) for marker in self.DEFAULT_MARKERS),
@@ -54,4 +67,5 @@ class DiscourseCandidateStrategy:
                 start=start,
                 end=end,
                 original_text=text.original[start:end],
+                continuation=match.group() in self.CONTINUATION_MARKERS,
             )
