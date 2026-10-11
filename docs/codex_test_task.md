@@ -5,7 +5,14 @@
 Test the running legal-link detection service as a black box.
 
 Do not modify the parser, resolver, API implementation, aliases, or tests during this task.
-Your job is to generate valid test text from prepared targets, call the running FastAPI service, compare expected and detected law IDs, and report failures.
+Your job is to:
+
+1. generate a balanced set of targets;
+2. turn those targets into natural Russian legal-style text;
+3. deliberately exercise a small set of supported edge cases;
+4. call the running FastAPI service;
+5. compare expected and detected full LawLink tuples;
+6. report failures without patching production code.
 
 The service is expected to be running at:
 
@@ -35,16 +42,27 @@ The response contract is:
 }
 ```
 
-`/detect` intentionally returns both exact matches and all candidates from ambiguous matches.
-The test is recall-oriented with respect to ambiguity, but it validates the full parsed structure: a run passes only when every expected `(law_id, article, point_article, subpoint_article)` tuple is present in the returned set.
+`/detect` intentionally returns both exact matches and all candidates from ambiguous matches, preserving their text order.
+
+The test is recall-oriented with respect to ambiguity, but validates the full parsed structure. A run passes only when every expected
+
+```text
+(law_id, article, point_article, subpoint_article)
+```
+
+tuple is present in the returned set.
+
+Unexpected extra detections remain visible in the report and must be discussed even though they do not fail the run.
 
 ## Step 1. Generate balanced targets
 
-Run:
+Run, for example:
 
 ```bash
-uv run python scripts/codex_generate_cases.py --runs 5 --references 3 --seed 42
+uv run python scripts/codex_generate_cases.py --runs 5 --references 3 --seed 211
 ```
+
+Use a different explicit seed for later independent batches.
 
 This creates:
 
@@ -52,86 +70,190 @@ This creates:
 .artifacts/codex_test_cases.json
 ```
 
-The file contains 5 runs with 3 targets each.
-Sampling is balanced across document families as much as possible.
-A family with only one available document is sampled at most once.
+Sampling is balanced across document families as much as possible. A family with only one available document is sampled at most once.
 
-Each target has:
+Each target contains:
 
-```json
-{
-  "law_id": 970,
-  "family": "rf_law",
-  "structure_kind": "parts_article",
-  "structure": "части 2 и 4 статьи 14",
-  "document_form": "Федеральный закон \"О беженцах\"",
-  "expected_links": [
-    {
-      "law_id": 970,
-      "article": "14",
-      "point_article": "2",
-      "subpoint_article": null
-    },
-    {
-      "law_id": 970,
-      "article": "14",
-      "point_article": "4",
-      "subpoint_article": null
-    }
-  ]
-}
+- `law_id`;
+- document `family`;
+- `structure_kind`;
+- concrete `structure`;
+- concrete `document_form`;
+- one or more `expected_links`.
+
+The generator deliberately varies structure shape. Across a normal 5×3 batch it attempts to cover:
+
+- one article;
+- several articles;
+- one point without an article;
+- several points without an article;
+- one or several parts of an article;
+- one or several points of an article;
+- one or several subpoints;
+- several points combined with several articles.
+
+Do not simplify multi-value structures. For example:
+
+```text
+пункты 2 и 4 статей 10 и 12
 ```
 
-The generator deliberately varies structure shape. Across the batch you may see:
+must represent four expected LawLinks.
 
-- one article: `статья 12`;
-- several articles: `статьи 12 и 18`;
-- one point without an article: `пункт 4`;
-- several points without an article: `пункты 2 и 7`;
-- one or several parts of one article;
-- one or several points of one article;
-- one or several subpoints of one point/article;
-- several points combined with several articles, which should expand to multiple LawLink combinations.
+## Step 2. Generate legal-style test text
 
-Do not simplify a generated structure. Preserve every value it contains.
+Read:
 
-## Step 2. Generate test text yourself
+```text
+.artifacts/codex_test_cases.json
+```
 
-Read `.artifacts/codex_test_cases.json`.
+For each run, write one natural Russian legal-style paragraph or short multi-sentence fragment containing every target from that run exactly once.
 
-For each run, write one natural Russian legal-style paragraph or short multi-sentence fragment containing all targets from that run exactly once.
-
-The parser is intentionally rule-based. Every target must appear locally in exactly this shape:
+The baseline parser contract is:
 
 ```text
 <STRUCTURE> <DOCUMENT_FORM>
 ```
 
+The structure must come before the document. Keep them local to one another.
+
 Examples:
 
 ```text
 статья 82 Федерального закона №13-ФЗ
-статьи 82 и 91 Федерального закона №13-ФЗ
-пункт 6 Федерального закона №13-ФЗ
-пункты 3 и 7 Федерального закона №13-ФЗ
+пункт 6 статьи 84 Федерального закона №138-ФЗ
 части 2 и 4 статьи 91 Семейного кодекса
-пункты 6 и 8 статьи 84 Федерального закона от 11.11.2003 №138-ФЗ
-подпункты "а" и "в" пункта 12 статьи 17 ФЗ от 29.12.2020 №472-ФЗ
+подпункты "а" и "в" пункта 12 статьи 17 ФЗ №472-ФЗ
 пункты 2 и 4 статей 10 и 12 Федерального закона №13-ФЗ
 ```
 
-Rules:
+### Regression probes to exercise
 
-- Put the structure before the document form.
-- Keep structure and document form adjacent except for normal grammatical spacing.
-- Preserve `document_form` exactly as provided: spelling, number, date, abbreviation, title, quotes, and case.
+The parser now intentionally supports several edge cases. When the current targets permit it, distribute these probes across the batch rather than making every reference maximally difficult.
+
+#### 1. Number-prefix variants
+
+For structured acts whose `document_form` contains a number such as:
+
+```text
+Федеральный закон №225-ФЗ
+```
+
+it is allowed to use an equivalent surface variant in selected cases:
+
+```text
+Федеральный закон № 225-ФЗ
+Федеральный закон N 225-ФЗ
+```
+
+Do not change the actual number, suffix, date, family, or title.
+
+Use these variants only for numbered structured acts. Do not invent a number for title-only documents.
+
+#### 2. Compact structure markers
+
+In selected cases, normal spacing may be removed after abbreviated structural markers:
+
+```text
+ст.5
+п.10
+пп.«а»
+```
+
+Do not reorder the hierarchy.
+
+#### 3. Guillemets for subpoints
+
+A quoted subpoint may use Russian guillemets:
+
+```text
+пп. «а»
+```
+
+instead of ordinary double quotes when this does not alter the target value.
+
+#### 4. Several references in one sentence
+
+It is useful to place two complete references in the same sentence using connectors such as:
+
+```text
+и
+а также
+при этом
+```
+
+Each target must still remain structurally identifiable.
+
+In particular, the parser must distinguish:
+
+```text
+п. 1 ст. 5 ... и п. 2 ст. 7 ...
+```
+
+from a single multi-value construction such as:
+
+```text
+пункты 1 и 2 статей 5 и 7 ...
+```
+
+Do not silently rewrite one form into the other.
+
+#### 5. Benign negative noise
+
+A small amount of ordinary prose may contain expressions such as:
+
+```text
+т. п.
+т.п.
+т. ч.
+т.ч.
+```
+
+These must not be intentionally presented as legal references.
+
+Use this only as surrounding prose. Do not place such noise between a target's structure and its document form.
+
+#### 6. Nearby second code mention
+
+For a code-family target, one run may contain a nearby comparison such as:
+
+```text
+ст. 10 ГК РФ (в отличие от УК РФ)
+```
+
+The first complete reference must remain detectable even though another code is mentioned nearby.
+
+Do this sparingly and never replace the target's actual code.
+
+#### 7. Text order
+
+When a run contains several references, keep a clear order in the generated text. The public `/detect` endpoint is expected to return exact links and ambiguous candidates in source-text order.
+
+### Important boundaries
+
+Do NOT test unsupported semantics merely because they appear in natural language.
+
+In particular, do not generate:
+
+- document before structure, e.g. `НК РФ, статья 5`;
+- simultaneous point + part mapped into separate output fields, e.g. `п. 2 ч. 1 ст. 12.8`;
+- reversed hierarchy such as `ст. 5 ч. 3 п. 2`;
+- arbitrary long-distance inheritance of a document across unrelated prose;
+- lowercase/case variants unless they were explicitly chosen as a regression probe supported by the current parser.
+
+The goal is to stress supported behavior, not silently expand the assignment contract.
+
+### General generation rules
+
+- Include every target exactly once.
+- Do not add extra legal references except for a deliberate nearby-code comparison probe.
+- Do not output `law_id`, run IDs, target IDs, comments, Markdown, footnotes, or explanations inside the generated text.
 - Do not replace a document with "данный закон", "указанный акт", etc.
-- Do not put the structure after the document or in parentheses after it.
-- Do not invent another document type or number.
-- Do not add additional legal references not present in the run.
-- Do not include `law_id`, run IDs, target IDs, comments, Markdown emphasis, footnotes, or explanations inside the generated text.
-- Ordinary surrounding legal prose is allowed.
-- Do not change the service code when a generated case fails.
+- Do not invent another document type, number, date, or title.
+- Title-only `document_form` values must remain title-only.
+- Preserve nested quoted titles carefully. If a title itself contains straight quotes, do not wrap the whole title in the same straight quotes. Use Russian guillemets outside and keep the inner straight quotes, for example: `«О некоторых вопросах фонда "Русский мир"»`.
+- Do not change production code when a generated case fails.
 
 Write all generated texts to:
 
@@ -139,7 +261,7 @@ Write all generated texts to:
 .artifacts/codex_generated_texts.json
 ```
 
-with this exact shape:
+with exactly:
 
 ```json
 {
@@ -152,7 +274,7 @@ with this exact shape:
 }
 ```
 
-Include exactly one item for every run in the cases file.
+Include one item for every run in the cases file.
 
 ## Step 3. Run the black-box checker
 
@@ -165,72 +287,61 @@ uv run python scripts/codex_check_cases.py
 The checker:
 
 1. sends every generated text to `POST /detect`;
-2. collects the full returned LawLink tuples:
-   `(law_id, article, point_article, subpoint_article)`;
-3. compares them with every `expected_links` entry generated for the target;
-4. treats ambiguous candidates as valid detections because `/detect` already flattens them;
-5. verifies expansion of multi-value structures, not only document detection;
-6. writes a detailed report to:
+2. collects full returned LawLink tuples;
+3. compares them with every generated `expected_links` entry;
+4. treats ambiguous candidates as valid detections;
+5. verifies multi-value expansion;
+6. records unexpected detections;
+7. writes:
 
 ```text
 .artifacts/codex_test_report.json
 ```
 
-A run is PASS when every expected full LawLink is returned:
+A run is PASS when:
 
 ```text
 expected_links ⊆ detected_links
 ```
 
-For example, if the target contains `пункты 2 и 4 статьи 10`, the server must return both:
-
-```text
-(law_id, article=10, point_article=2)
-(law_id, article=10, point_article=4)
-```
-
-If the target contains `пункты 2 и 4 статей 10 и 12`, all four article/point combinations are expected.
-
-Unexpected extra detections do not fail the run, but they must remain visible in the report.
+Unexpected extra detections do not fail the run, but must remain visible in the report.
 
 ## Step 4. Analyze failures
 
-If all 5 runs pass, report the result and stop.
+If every run passes, report the result and stop. Do not patch production code.
 
-If any run fails, do not modify production code.
+If any run fails, classify it as one of:
 
-Read `.artifacts/codex_test_report.json` and classify each failed run into one of:
+1. **GENERATION_ERROR** — generated text violated the intended target or unsupported semantics were introduced.
+2. **UNSUPPORTED_FORM** — text is reasonable but outside the parser contract defined above.
+3. **PARSER_CANDIDATE_BUG** — text follows the supported contract but an expected full LawLink is missing.
+4. **REGRESSION_BUG** — one of the explicitly supported regression probes above no longer works.
 
-1. **GENERATION_ERROR** — your text violated the required `<STRUCTURE> <DOCUMENT_FORM>` contract or changed the target.
-2. **UNSUPPORTED_FORM** — the text follows the requested target but exposes a format outside the parser's intended contract.
-3. **PARSER_CANDIDATE_BUG** — the text follows the contract and the expected `law_id` is still absent.
-
-For every failed run report:
+For each failure report:
 
 - run ID;
-- original targets;
+- target(s);
 - generated text;
-- expected law IDs;
-- detected law IDs;
-- missed full LawLink tuples;
-- unexpected full LawLink tuples;
+- expected full LawLinks;
+- detected full LawLinks;
+- missed tuples;
+- unexpected tuples;
 - classification;
-- concise explanation of the likely cause.
+- likely cause.
 
-Do not patch code automatically.
-Do not rewrite aliases automatically.
-Do not rerun with easier text merely to hide a failure.
+Do not modify aliases or parser code automatically. Do not rerun with easier text merely to hide a failure.
 
 ## Final response
 
 Return a concise summary containing:
 
-- number of runs passed;
-- number failed;
-- family distribution from the cases file;
-- structure distribution from the cases file;
+- passed / failed run count;
+- seed;
+- family distribution;
+- structure distribution;
+- which regression probes were exercised;
 - any unexpected detections;
-- one short section per failed run with its classification and likely cause;
-- path to the JSON report.
+- classification for every failed run;
+- report path.
 
-If all runs pass, explicitly say that the black-box check passed 5/5.
+If all five runs pass, explicitly state that the black-box check passed 5/5.

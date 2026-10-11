@@ -51,21 +51,37 @@ class SubpointMatch:
         return f"{self.original_text} ({self.start}, {self.end})"
 
 
-_VALUE = r'(?:"[^"]+"|\d+(?:\.\d+)*|[а-яё])'
-_VALUES = rf'{_VALUE}(?:\s*,\s*{_VALUE})*(?:\s+и\s+{_VALUE})?'
+_NUMBER = r"\d+(?:\.\d+)*(?:(?:-|\s*[–—]\s*)\d+(?:\.\d+)*)?"
+_QUOTED = r'(?:"[^"]+"|«[^»]+»)'
+_LETTER = r"[а-яё]"
+_SEPARATOR = r"(?:\s*,\s*(?:(?:и|или)\s+)?|\s+(?:и|или)\s+)"
+_MARKER_START = r"(?<!\w)(?<!\bт\.)(?<!\bт\.\s)"
+
+
+def _enumeration(value: str) -> str:
+    return rf"{value}(?:{_SEPARATOR}{value})*"
+
+
+_NUMBER_VALUES = _enumeration(rf"(?:{_QUOTED}|{_NUMBER})")
+_LETTER_VALUES = _enumeration(rf"(?:{_QUOTED}|{_LETTER})")
+_GENERAL_VALUES = rf"(?:{_NUMBER_VALUES}|{_LETTER_VALUES})"
+_ARTICLE_VALUES = _NUMBER_VALUES
 
 
 def _extract_values(text: str) -> tuple[str, ...]:
     return tuple(
-        value.strip('"')
-        for value in re.findall(_VALUE, text)
-        if value != "и"
+        re.sub(r"\s+", "", value)
+        .strip('"«»')
+        .replace("–", "-")
+        .replace("—", "-")
+        for value in re.split(_SEPARATOR, text)
+        if value
     )
 
 
 class ArticleCandidateStrategy:
     _PATTERN = re.compile(
-        rf"(?<!\w)(?:ст\.|стать(?:я|и|е|ю|ей|ями|ях|ям)|статей)\s+(?P<values>{_VALUES})(?!\w)"
+        rf"(?<!\w)(?:ст\.\s*|(?:стать(?:я|и|е|ю|ей|ями|ях|ям)|статей)\s+)(?P<values>{_ARTICLE_VALUES})(?!\w)"
     )
 
     def find(self, text: NormalizedText) -> Iterator[ArticleMatch]:
@@ -83,7 +99,7 @@ class ArticleCandidateStrategy:
 
 class PartCandidateStrategy:
     _PATTERN = re.compile(
-        rf"(?<!\w)(?:ч\.|част(?:ь|и|ью|ей|ями|ях|ям))\s+(?P<values>{_VALUES})(?!\w)"
+        rf"{_MARKER_START}(?:ч\.\s*|част(?:ь|и|ью|ей|ями|ях|ям)\s+)(?P<values>{_GENERAL_VALUES})(?!\w)"
     )
 
     def find(self, text: NormalizedText) -> Iterator[PartMatch]:
@@ -101,7 +117,7 @@ class PartCandidateStrategy:
 
 class PointCandidateStrategy:
     _PATTERN = re.compile(
-        rf"(?<!\w)(?:п\.|пунта|пункт(?:ы|а|у|ом|е|ов|ах|ам|ами)?)\s+(?P<values>{_VALUES})(?!\w)"
+        rf"{_MARKER_START}(?:п\.\s*|(?:пунта|пункт(?:ы|а|у|ом|е|ов|ах|ам|ами)?)\s+)(?P<values>{_GENERAL_VALUES})(?!\w)"
     )
 
     def find(self, text: NormalizedText) -> Iterator[PointMatch]:
@@ -119,7 +135,7 @@ class PointCandidateStrategy:
 
 class SubpointCandidateStrategy:
     _PATTERN = re.compile(
-        rf"(?<!\w)(?:пп\.|подпункт(?:ы|а|у|ом|е|ов|ах|ам|ами)?)\s+(?P<values>{_VALUES})(?!\w)"
+        rf"(?<!\w)(?:пп\.\s*|подпункт(?:ы|а|у|ом|е|ов|ах|ам|ами)?\s+)(?P<values>{_GENERAL_VALUES})(?!\w)"
     )
 
     def find(self, text: NormalizedText) -> Iterator[SubpointMatch]:

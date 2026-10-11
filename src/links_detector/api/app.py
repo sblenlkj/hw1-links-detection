@@ -43,17 +43,6 @@ def _law_link_response(link: LawLink) -> LawLinkResponse:
     )
 
 
-def _all_detected_links(result: FinalizerResult) -> list[LawLink]:
-    return [
-        *result.links,
-        *(
-            candidate
-            for item in result.ambiguous
-            for candidate in item.candidates
-        ),
-    ]
-
-
 @app.post(
     "/detect",
     response_model=LinksResponse,
@@ -61,7 +50,7 @@ def _all_detected_links(result: FinalizerResult) -> list[LawLink]:
     description=(
         "Extracts all detected legal references in one list. "
         "Unambiguous references are returned together with every candidate "
-        "from ambiguous references."
+        "from ambiguous references, preserving text order."
     ),
 )
 def detect(
@@ -74,9 +63,8 @@ def detect(
         logger.exception("Unexpected error while detecting legal references")
         return LinksResponse(links=[])
 
-    links = _all_detected_links(result)
     return LinksResponse(
-        links=[_law_link_response(link) for link in links]
+        links=[_law_link_response(link) for link in result.all_links]
     )
 
 

@@ -22,6 +22,10 @@ def values(strategy, raw: str) -> list[tuple[str, ...]]:
         ("статьи 10", ("10",)),
         ("статью 10", ("10",)),
         ("статей 10, 11 и 12", ("10", "11", "12")),
+        ("ст.5", ("5",)),
+        ("статья 43.2-6", ("43.2-6",)),
+        ("статьи 5 – 7", ("5-7",)),
+        ("статьи 5, 6, 7 и 8 и 9", ("5", "6", "7", "8", "9")),
     ],
 )
 def test_article_variants(raw: str, expected: tuple[str, ...]) -> None:
@@ -67,6 +71,7 @@ def test_point_variants(raw: str, expected: tuple[str, ...]) -> None:
         ("пп. 4, 5, 6 и 8", ("4", "5", "6", "8")),
         ('подпунктам "а", "б" и "в"', ("а", "б", "в")),
         ('подпунктов "а" и "б"', ("а", "б")),
+        ("пп. «а»", ("а",)),
         ("подпунктах а, б и с", ("а", "б", "с")),
         ("подпункту 2", ("2",)),
     ],
@@ -89,6 +94,7 @@ def test_structure_preserves_original_offsets() -> None:
     ("strategy", "raw"),
     [
         (ArticleCandidateStrategy(), "статья без номера"),
+        (ArticleCandidateStrategy(), "в статье о налогах"),
         (PartCandidateStrategy(), "часть документа"),
         (PointCandidateStrategy(), "пункт договора"),
         (SubpointCandidateStrategy(), "подпункт текста"),

@@ -61,6 +61,8 @@ class DocumentResolver:
                 items=items,
                 quote=quote_match.value if quote_match else None,
                 search_text=text.original[segment.start:segment.next_start],
+                full_text=text.original,
+                family_match=family_match,
             )
             if law_ids:
                 return tuple(
@@ -81,6 +83,8 @@ class DocumentResolver:
         items: tuple[dict, ...],
         quote: str | None,
         search_text: str,
+        full_text: str,
+        family_match: FamilyMatch,
     ) -> tuple[int, ...]:
         if quote is not None:
             by_title = self._match_title(items, quote)
@@ -93,7 +97,11 @@ class DocumentResolver:
             return self._resolve_structured(items, search_text)
 
         if family == "code":
-            law_id = self._code_resolver.resolve(search_text)
+            law_id = self._code_resolver.resolve(
+                full_text,
+                anchor_start=family_match.start,
+                anchor_end=family_match.end,
+            )
             return (law_id,) if law_id is not None else ()
 
         if family == "federal_accounting_standard":
@@ -144,7 +152,7 @@ class DocumentResolver:
             item
             for item in candidates
             if re.search(
-                rf"(?<![\w-]){re.escape(item['number'])}(?!\w)",
+                rf"(?<![\w-])(?:№|N)\s*{re.escape(item['number'])}(?!\w)",
                 search_text,
                 re.IGNORECASE,
             )

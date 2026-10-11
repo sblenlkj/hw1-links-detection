@@ -46,24 +46,53 @@ _SHORT_NAMES: tuple[tuple[int, str], ...] = (
     (17, "КоАП"),
 )
 
+_WINDOW = 120
+
 
 class CodeResolver:
-    def resolve(self, text: str) -> int | None:
-        matches: set[int] = set()
+    def resolve(
+        self,
+        text: str,
+        anchor_start: int,
+        anchor_end: int,
+    ) -> int | None:
+        window_start = max(0, anchor_start - _WINDOW)
+        window_end = min(len(text), anchor_end + _WINDOW)
+        window = text[window_start:window_end]
+
+        anchor_local_start = anchor_start - window_start
+        anchor_local_end = anchor_end - window_start
+
+        spans: list[tuple[int, int, int]] = []
 
         for law_id, pattern in _CODE_PATTERNS:
-            if pattern.search(text):
-                matches.add(law_id)
+            for match in pattern.finditer(window):
+                spans.append((match.start(), match.end(), law_id))
 
         for law_id, short_name in _SHORT_NAMES:
-            if re.search(
+            for match in re.finditer(
                 rf"(?<!\w){re.escape(short_name)}(?:\s+РФ)?(?!\w)",
-                text,
+                window,
                 re.IGNORECASE,
             ):
-                matches.add(law_id)
+                spans.append((match.start(), match.end(), law_id))
 
-        if len(matches) == 1:
-            return next(iter(matches))
+        overlapping = [
+            span
+            for span in spans
+            if span[0] < anchor_local_end and anchor_local_start < span[1]
+        ]
+        if not overlapping:
+            return None
+
+        longest = max(end - start for start, end, _ in overlapping)
+        law_ids = {
+            law_id
+            for start, end, law_id in overlapping
+            if end - start == longest
+        }
+
+        if len(law_ids) == 1:
+            return next(iter(law_ids))
 
         return None

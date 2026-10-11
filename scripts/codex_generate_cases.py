@@ -64,9 +64,9 @@ def choose_document_form(
 
         if number:
             for alias in aliases:
-                options.append(f"{alias} {number}")
+                options.append(f"{alias} №{number}")
                 if date:
-                    options.append(f"{alias} от {date} {number}")
+                    options.append(f"{alias} от {date} №{number}")
 
         if title:
             options.append(f'"{title}"')

@@ -45,6 +45,25 @@ def test_federal_law_family_variants_from_source_aliases() -> None:
     )
 
 
+def test_federal_law_number_prefix_variants() -> None:
+    text = TestTextBuilder.build(
+        [
+            "ст. 3 Федерального закона №402-ФЗ",
+            "ст. 4 Федерального закона № 402-ФЗ",
+            "ст. 5 Федерального закона N 402-ФЗ",
+        ]
+    )
+
+    result = LinksFinalizer().extract(text)
+
+    assert result.ambiguous == ()
+    assert result.links == (
+        LawLink(law_id=224, article="3"),
+        LawLink(law_id=224, article="4"),
+        LawLink(law_id=224, article="5"),
+    )
+
+
 def test_federal_law_duplicate_numbers_are_disambiguated_by_date() -> None:
     text = TestTextBuilder.build(
         [

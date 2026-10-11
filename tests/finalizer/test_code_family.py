@@ -4,6 +4,15 @@ from links_detector.models import LawLink
 from links_detector.utils.test_text_builder import TestTextBuilder
 
 
+def test_code_reference_is_not_broken_by_second_code_mention() -> None:
+    result = LinksFinalizer().extract("ст. 10 ГК РФ (в отличие от УК РФ)")
+
+    assert result.ambiguous == ()
+    assert result.links == (
+        LawLink(law_id=5, article="10"),
+    )
+
+
 def test_code_family_variants_from_source_aliases() -> None:
     text = TestTextBuilder.build(
         [

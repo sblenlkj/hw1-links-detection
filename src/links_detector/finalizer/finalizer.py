@@ -17,6 +17,16 @@ from links_detector.normalization import TextNormalizer
 from .models import AmbiguousLinks, FinalizerResult, FinalizerStats, SegmentResolution
 
 
+StructureMatch = ArticleMatch | PartMatch | PointMatch | SubpointMatch
+
+_LEVELS: dict[type, int] = {
+    SubpointMatch: 0,
+    PointMatch: 1,
+    PartMatch: 2,
+    ArticleMatch: 3,
+}
+
+
 class LinksFinalizer:
     """Facade for segmentation, document resolution and LawLink expansion."""
 
@@ -35,6 +45,7 @@ class LinksFinalizer:
         ambiguous_segments = 0
         expanded_segments = 0
         expanded: list[LawLink] = []
+        ordered: list[LawLink] = []
         ambiguous: list[AmbiguousLinks] = []
         resolutions: list[SegmentResolution] = []
 
@@ -73,10 +84,14 @@ class LinksFinalizer:
             else:
                 expanded.extend(segment_links)
 
+            ordered.extend(segment_links)
+
         unique_links = tuple(dict.fromkeys(expanded))
+        all_links = tuple(dict.fromkeys(ordered))
 
         return FinalizerResult(
             links=unique_links,
+            all_links=all_links,
             ambiguous=tuple(ambiguous),
             stats=FinalizerStats(
                 total_segments=len(segments),
@@ -95,38 +110,88 @@ class LinksFinalizer:
         )
 
     @staticmethod
+    def _split_chains(segment: Segment) -> list[list[StructureMatch]]:
+        chains: list[list[StructureMatch]] = []
+        current: list[StructureMatch] = []
+        direction = 0
+
+        for match in segment.matches:
+            if type(match) not in _LEVELS:
+                continue
+
+            level = _LEVELS[type(match)]
+            if current:
+                step = level - _LEVELS[type(current[-1])]
+                same_level_enumeration = step == 0 and direction == 0
+                direction_changed = step != 0 and direction != 0 and step * direction < 0
+
+                if direction_changed:
+                    chains.append(current)
+                    current = []
+                    direction = 0
+                elif step == 0 and not same_level_enumeration:
+                    chains.append(current)
+                    current = []
+                    direction = 0
+
+                if step != 0 and not current:
+                    direction = 0
+                elif step != 0:
+                    direction = 1 if step > 0 else -1
+
+            current.append(match)
+
+            if len(current) >= 2:
+                previous_level = _LEVELS[type(current[-2])]
+                current_level = _LEVELS[type(current[-1])]
+                step = current_level - previous_level
+                if step != 0 and direction == 0:
+                    direction = 1 if step > 0 else -1
+
+        if current:
+            chains.append(current)
+
+        return chains
+
+    @classmethod
     def _expand(
+        cls,
         segment: Segment,
         resolved: ResolvedDocument,
         comment: str | None = None,
     ) -> list[LawLink]:
-        articles: list[str | None] = []
-        points: list[str | None] = []
-        subpoints: list[str | None] = []
+        links: list[LawLink] = []
 
-        for match in segment.matches:
-            if isinstance(match, ArticleMatch):
-                articles.extend(match.values)
-            elif isinstance(match, (PartMatch, PointMatch)):
-                points.extend(match.values)
-            elif isinstance(match, SubpointMatch):
-                subpoints.extend(match.values)
+        for chain in cls._split_chains(segment):
+            articles: list[str | None] = []
+            points: list[str | None] = []
+            subpoints: list[str | None] = []
 
-        article_values = tuple(articles) or (None,)
-        point_values = tuple(points) or (None,)
-        subpoint_values = tuple(subpoints) or (None,)
+            for match in chain:
+                if isinstance(match, ArticleMatch):
+                    articles.extend(match.values)
+                elif isinstance(match, (PartMatch, PointMatch)):
+                    points.extend(match.values)
+                elif isinstance(match, SubpointMatch):
+                    subpoints.extend(match.values)
 
-        return [
-            LawLink(
-                law_id=resolved.law_id,
-                article=article,
-                point_article=point,
-                subpoint_article=subpoint,
-                comment=comment,
+            article_values = tuple(articles) or (None,)
+            point_values = tuple(points) or (None,)
+            subpoint_values = tuple(subpoints) or (None,)
+
+            links.extend(
+                LawLink(
+                    law_id=resolved.law_id,
+                    article=article,
+                    point_article=point,
+                    subpoint_article=subpoint,
+                    comment=comment,
+                )
+                for article, point, subpoint in product(
+                    article_values,
+                    point_values,
+                    subpoint_values,
+                )
             )
-            for article, point, subpoint in product(
-                article_values,
-                point_values,
-                subpoint_values,
-            )
-        ]
+
+        return links
